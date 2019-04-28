@@ -52,11 +52,9 @@ This lets you build a scale that is either **MAJOR, MINOR, AUGMENTED, or DIMINIS
 #### The MODES:
 There are two modes available via each channels "mode" toggle switch. **monophonic** mode and **quantizer** mode.
 
-##### Monophonic:
-Pays no attention to any incoming CV, and simply outputs which ever scale degree is currently active/selected (via touch buttons, indicated by an LED).
+**Monophonic** mode pays no attention to any incoming CV, and simply outputs which ever scale degree is currently active/selected (via touch buttons, indicated by an LED).
 
-##### Quantizer:
-Takes an incoming voltage source and quantizes it to a 1 volter per octave value (determined by the scale selection toggle switches). You can activate/deactivate which scale degrees you want the incoming voltage to be mapped to by touching the channels buttons.
+**Quantizer** mode takes an incoming voltage source and quantizes it to a 1 volter per octave value (determined by the scale selection toggle switches). You can activate/deactivate which scale degrees you want the incoming voltage to be mapped to by touching the channels buttons.
 
 
 
