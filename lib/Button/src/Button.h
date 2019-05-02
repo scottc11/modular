@@ -13,10 +13,10 @@ public:
     this->prevState = 0;
   }
 
-
   bool changedState();
   bool isPressed();
   void updateState();
+
 };
 
 

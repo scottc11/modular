@@ -17,11 +17,7 @@ const int RESET_PIN = 7;
 
 Adafruit_MCP23017 io = Adafruit_MCP23017();
 Adafruit_MPR121 touch = Adafruit_MPR121();
-
 Button resetBtn = Button(RESET_PIN);
-
-
-
 
 int currentStep = 1;
 int steps = 8;                   // how many steps before sequencer loop resets
@@ -40,10 +36,6 @@ long timeOfLastClock = 0;        //
 long timeOfLastTouchA = 0;       // when channel A was last touched in microseconds
 long timeOfLastReleaseA = 0;     // when channel A was last released in microseconds
 bool triggered = false;          // determin if channel A has already been triggered/set HIGH
-
-// RESET BUTTONS
-int newResetButtonState = 0;
-int prevResetButtonState = 0;
 
 uint16_t lastTouched = 0;
 uint16_t currTouched = 0;
