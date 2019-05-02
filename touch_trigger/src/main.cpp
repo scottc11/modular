@@ -2,20 +2,25 @@
 #include <Adafruit_MCP23017.h>
 #include <TimerOne.h>
 #include <Adafruit_MPR121.h>
+#include <Button.h>
 #include <Event.h>
 #include <Channel.cpp>
-#include <Button.h>
 
 #define IO_ADDR 0x00
 #define TOUCH_ADDR 0x5A
-
-Adafruit_MCP23017 io = Adafruit_MCP23017();
-Adafruit_MPR121 touch = Adafruit_MPR121();
 
 const bool DEBUG = true;
 const int CLOCK_INTERUPT_PIN = 2;
 const int CLOCK_LED_PIN = 4;
 const int LOOP_START_LED_PIN = 5;
+const int RESET_PIN = 7;
+
+Adafruit_MCP23017 io = Adafruit_MCP23017();
+Adafruit_MPR121 touch = Adafruit_MPR121();
+
+Button resetBtn = Button(RESET_PIN);
+
+
 
 
 int currentStep = 1;
@@ -111,11 +116,11 @@ void loop() {
 
   long now = micros();                       // used throughout loop() function
   currTouched = touch.touched();             // Get the currently touched pads
-  newResetButtonState = io.digitalRead(7);   // detect reset buttons
+  resetBtn.newState = io.digitalRead(resetBtn.pin);   // detect reset buttons
 
   // --------- HANDLE RESET BUTTON ---------
-  if (newResetButtonState != prevResetButtonState) {
-    if (newResetButtonState == HIGH) {
+  if (resetBtn.changedState()) {
+    if (resetBtn.isPressed() == HIGH) {
       Event *tmp;
       while (HEAD != NULL) {
         tmp = HEAD;
@@ -125,7 +130,7 @@ void loop() {
       QUEUED = NULL;
       if (DEBUG && HEAD == NULL) { Serial.println("all events deleted"); }
     }
-    prevResetButtonState = newResetButtonState;
+    resetBtn.updateState();
   }
 
   // ------ CLOCK INDICATORS -----
