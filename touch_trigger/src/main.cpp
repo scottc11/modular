@@ -4,6 +4,7 @@
 #include <Adafruit_MPR121.h>
 #include <Event.h>
 #include <Channel.cpp>
+#include <Button.h>
 
 #define IO_ADDR 0x00
 #define TOUCH_ADDR 0x5A
