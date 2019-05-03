@@ -15,19 +15,13 @@ const int CLOCK_INTERUPT_PIN = 2;
 const int CLOCK_LED_PIN = 4;
 const int LOOP_START_LED_PIN = 5;
 const int RESET_PIN = 7;
+const int CHANNEL_A_LED_PIN = 8;   // via io
+
 
 Adafruit_MCP23017 io = Adafruit_MCP23017();
 Adafruit_MPR121 touch = Adafruit_MPR121();
 Button resetBtn = Button(RESET_PIN);
 Clock clock;
-
-int currentStep = 1;
-int steps = 8;                   // how many steps before sequencer loop resets
-int clocked = 0;                 // how many times externally clocked
-long pulseDuration = 20000;      // how long, in microseconds, the clock led will be lit
-long stepDuration = 500000;      // how long, in microseconds, a single step lasts before the next step begins. Will be variable based on clock input
-long timeOfLoopStart = 0;        // when the first step occured on the system clock
-long timeOfLastClock = 0;
 
 // RECORDING TOUCH SEQUENCE
 Event * current;
@@ -42,39 +36,7 @@ bool triggered = false;          // determin if channel A has already been trigg
 uint16_t lastTouched = 0;
 uint16_t currTouched = 0;
 
-const int CHANNEL_A_LED_PIN = 8;   // via io
 
-// Timer1 Interupt Callback
-// void advanceClock() {
-//
-//   timeOfLastClock = micros();  // the current time
-//   if (currentStep == 1) {
-//     timeOfLoopStart = timeOfLastClock;
-//     // Serial.print("timeOfLoopStart: ");Serial.println(timeOfLoopStart);
-//   }
-//   // increment currentStep by 1
-//   if (currentStep < steps) {
-//     currentStep += 1;
-//   } else {
-//     currentStep = 1;
-//   }
-// }
-//
-// volatile long lastPulseInterval = 0;
-//
-// void detectTempo() {
-//
-//   long now = micros();
-//   long newPulseInterval = now - timeOfLastClock;
-//   timeOfLastClock = now;
-//
-//   if (newPulseInterval != lastPulseInterval) {
-//     // tell timer to trigger callback at an interval if newPulseInterval
-//     Timer1.setPeriod(newPulseInterval);
-//   }
-//
-//   lastPulseInterval = newPulseInterval;
-// }
 
 void setup() {
   Serial.begin(9600);
@@ -150,8 +112,8 @@ void loop() {
     if ( (currTouched & _BV(i) ) && !( lastTouched & _BV(i) ) ) {
       io.digitalWrite(CHANNEL_A_LED_PIN, HIGH);
 
-      // get the current time of touch relative to timeOfLoopStart
-      timeOfLastTouchA = now - timeOfLoopStart;
+      // get the current time of touch relative to clock.loopStart
+      timeOfLastTouchA = now - clock.loopStart;
 
       Serial.print("timeOfLastTouchA: ");Serial.println(timeOfLastTouchA);
     }
@@ -160,7 +122,7 @@ void loop() {
     if (!(currTouched & _BV(i)) && (lastTouched & _BV(i)) ) {
       io.digitalWrite(CHANNEL_A_LED_PIN, LOW);
 
-      timeOfLastReleaseA = now - timeOfLoopStart;
+      timeOfLastReleaseA = now - clock.loopStart;
       long position = timeOfLastTouchA;
       long duration = timeOfLastReleaseA - timeOfLastTouchA;
 
@@ -214,7 +176,7 @@ void loop() {
 
   // HANDLE THE QUEUED EVENT
   if (QUEUED) {
-    long loopStart = now - timeOfLoopStart;
+    long loopStart = now - clock.loopStart;
 
     if (!QUEUED->triggered) { // ifnext event has not yet been triggered
       if (loopStart >= QUEUED->position && loopStart < QUEUED->position + QUEUED->duration) {
