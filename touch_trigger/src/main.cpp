@@ -3,6 +3,7 @@
 #include <TimerOne.h>
 #include <Adafruit_MPR121.h>
 #include <Button.h>
+#include <Clock.h>
 #include <Event.h>
 #include <Channel.cpp>
 
@@ -18,6 +19,7 @@ const int RESET_PIN = 7;
 Adafruit_MCP23017 io = Adafruit_MCP23017();
 Adafruit_MPR121 touch = Adafruit_MPR121();
 Button resetBtn = Button(RESET_PIN);
+Clock clock;
 
 int currentStep = 1;
 int steps = 8;                   // how many steps before sequencer loop resets
@@ -25,6 +27,7 @@ int clocked = 0;                 // how many times externally clocked
 long pulseDuration = 20000;      // how long, in microseconds, the clock led will be lit
 long stepDuration = 500000;      // how long, in microseconds, a single step lasts before the next step begins. Will be variable based on clock input
 long timeOfLoopStart = 0;        // when the first step occured on the system clock
+long timeOfLastClock = 0;
 
 // RECORDING TOUCH SEQUENCE
 Event * current;
@@ -32,7 +35,6 @@ Event * HEAD;
 Event * QUEUED;
 
 // MICROSECOND RECORDERS
-long timeOfLastClock = 0;        //
 long timeOfLastTouchA = 0;       // when channel A was last touched in microseconds
 long timeOfLastReleaseA = 0;     // when channel A was last released in microseconds
 bool triggered = false;          // determin if channel A has already been triggered/set HIGH
@@ -43,36 +45,36 @@ uint16_t currTouched = 0;
 const int CHANNEL_A_LED_PIN = 8;   // via io
 
 // Timer1 Interupt Callback
-void advanceClock() {
-
-  timeOfLastClock = micros();  // the current time
-  if (currentStep == 1) {
-    timeOfLoopStart = timeOfLastClock;
-    // Serial.print("timeOfLoopStart: ");Serial.println(timeOfLoopStart);
-  }
-  // increment currentStep by 1
-  if (currentStep < steps) {
-    currentStep += 1;
-  } else {
-    currentStep = 1;
-  }
-}
-
-volatile long lastPulseInterval = 0;
-
-void detectTempo() {
-
-  long now = micros();
-  long newPulseInterval = now - timeOfLastClock;
-  timeOfLastClock = now;
-
-  if (newPulseInterval != lastPulseInterval) {
-    // tell timer to trigger callback at an interval if newPulseInterval / PPQ
-    Timer1.setPeriod(newPulseInterval);
-  }
-
-  lastPulseInterval = newPulseInterval;
-}
+// void advanceClock() {
+//
+//   timeOfLastClock = micros();  // the current time
+//   if (currentStep == 1) {
+//     timeOfLoopStart = timeOfLastClock;
+//     // Serial.print("timeOfLoopStart: ");Serial.println(timeOfLoopStart);
+//   }
+//   // increment currentStep by 1
+//   if (currentStep < steps) {
+//     currentStep += 1;
+//   } else {
+//     currentStep = 1;
+//   }
+// }
+//
+// volatile long lastPulseInterval = 0;
+//
+// void detectTempo() {
+//
+//   long now = micros();
+//   long newPulseInterval = now - timeOfLastClock;
+//   timeOfLastClock = now;
+//
+//   if (newPulseInterval != lastPulseInterval) {
+//     // tell timer to trigger callback at an interval if newPulseInterval
+//     Timer1.setPeriod(newPulseInterval);
+//   }
+//
+//   lastPulseInterval = newPulseInterval;
+// }
 
 void setup() {
   Serial.begin(9600);
@@ -82,10 +84,13 @@ void setup() {
   io.begin(IO_ADDR);
 
   // create interupt to detect external clock tempo
-  attachInterrupt(digitalPinToInterrupt(CLOCK_INTERUPT_PIN), detectTempo, FALLING);
 
-  Timer1.initialize(stepDuration); // initialize @ 120 BPM
-  Timer1.attachInterrupt(advanceClock);
+
+  clock.init(8);
+  // attachInterrupt(digitalPinToInterrupt(CLOCK_INTERUPT_PIN), clock.detectTempo, FALLING);
+
+  Timer1.initialize(clock.stepDuration);
+  Timer1.attachInterrupt( [&clock](){ clock.advanceClock(); } );
 
 
 
@@ -127,12 +132,12 @@ void loop() {
 
   // ------ CLOCK INDICATORS -----
   // indicate tempo and loop start position via LEDs
-  if (now - pulseDuration < timeOfLastClock) {
+  if (now - clock.pulseDuration < clock.lastClock) {
     digitalWrite(CLOCK_LED_PIN, HIGH);
-    if (currentStep == 1) {digitalWrite(LOOP_START_LED_PIN, HIGH);}
+    if (clock.currStep == 1) {digitalWrite(LOOP_START_LED_PIN, HIGH);}
   } else {
     digitalWrite(CLOCK_LED_PIN, LOW);
-    if (currentStep == 1) {digitalWrite(LOOP_START_LED_PIN, LOW);}
+    if (clock.currStep == 1) {digitalWrite(LOOP_START_LED_PIN, LOW);}
   }
 
 
