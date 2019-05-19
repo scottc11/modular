@@ -4,6 +4,7 @@
 #include <Adafruit_MPR121.h>
 #include <Button.h>
 #include <Clock.h>
+#include <RotaryEncoder.h>
 #include <Event.h>
 #include <Channel.cpp>
 
@@ -16,12 +17,14 @@ const int CLOCK_LED_PIN = 4;
 const int LOOP_START_LED_PIN = 5;
 const int RESET_PIN = 7;
 const int CHANNEL_A_LED_PIN = 8;   // via io
-
+const int ENCODER_PIN_A = 10;
+const int ENCODER_PIN_B = 11;
 
 Adafruit_MCP23017 io = Adafruit_MCP23017();
 Adafruit_MPR121 touch = Adafruit_MPR121();
 Button resetBtn = Button(RESET_PIN);
 Clock clock;
+RotaryEncoder encoder;
 
 // RECORDING TOUCH SEQUENCE
 Event * current;
@@ -35,7 +38,7 @@ bool triggered = false;          // determin if channel A has already been trigg
 
 uint16_t lastTouched = 0;
 uint16_t currTouched = 0;
-
+int encoderPosition = 0;
 
 
 void setup() {
@@ -51,11 +54,15 @@ void setup() {
   clock.init(8);
   // attachInterrupt(digitalPinToInterrupt(CLOCK_INTERUPT_PIN), clock.detectTempo, FALLING);
 
+  encoder.init(ENCODER_PIN_A, ENCODER_PIN_B, 20);
+
   Timer1.initialize(clock.stepDuration);
   Timer1.attachInterrupt( [&clock](){ clock.advanceClock(); } );
 
 
 
+  pinMode(ENCODER_PIN_A, INPUT);
+  pinMode(ENCODER_PIN_B, INPUT);
   pinMode(CLOCK_LED_PIN, OUTPUT);
   digitalWrite(CLOCK_LED_PIN, LOW);
   pinMode(LOOP_START_LED_PIN, OUTPUT);
@@ -73,9 +80,16 @@ void setup() {
 // ------------------------------------
 void loop() {
 
-  long now = micros();                       // used throughout loop() function
-  currTouched = touch.touched();             // Get the currently touched pads
+  long now = micros();                                // used throughout loop() function
+  currTouched = touch.touched();                      // Get the currently touched pads
   resetBtn.newState = io.digitalRead(resetBtn.pin);   // detect reset buttons
+  int pos = encoder.trackShaftPosition();             // read the position of the encoder
+
+  if (pos != encoderPosition) {
+    Serial.print("encoder changed!: ");Serial.println(pos);
+    encoderPosition = pos;
+  }
+
 
   // --------- HANDLE RESET BUTTON ---------
   if (resetBtn.changedState()) {
