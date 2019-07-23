@@ -9,7 +9,7 @@ bool Button::changedState() {
 }
 
 bool Button::isPressed() {
-  if (this->newState == 1) {
+  if (this->newState == 1) {  // 1 is equal to HIGH or the boolean 'true'
     return true;
   } else {
     return false;

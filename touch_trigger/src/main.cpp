@@ -4,7 +4,7 @@
 #include <Adafruit_MPR121.h>
 #include <Button.h>
 #include <Clock.h>
-#include <RotaryEncoder.h>
+#include <Encoder.h>
 #include <Event.h>
 #include <Channel.cpp>
 
@@ -24,11 +24,11 @@ Adafruit_MCP23017 io = Adafruit_MCP23017();
 Adafruit_MPR121 touch = Adafruit_MPR121();
 Button resetBtn = Button(RESET_PIN);
 Clock clock;
-RotaryEncoder encoder;
+Encoder encoder(ENCODER_PIN_A, ENCODER_PIN_B);
 
 // RECORDING TOUCH SEQUENCE
-Event * current;
-Event * HEAD;
+Event * current;                 // variable not being used
+Event * HEAD;                    // I believe this stands for the first event in the loop.
 Event * QUEUED;
 
 // MICROSECOND RECORDERS
@@ -38,8 +38,17 @@ bool triggered = false;          // determin if channel A has already been trigg
 
 uint16_t lastTouched = 0;
 uint16_t currTouched = 0;
-int encoderPosition = 0;
+long encoderPosition = 0;
 
+void logClock() {
+  Serial.println("clocked");
+  clock.detectTempo();
+  Serial.println(clock.stepDuration);
+}
+
+void advanceClock() {
+  clock.advanceClock();
+}
 
 void setup() {
   Serial.begin(9600);
@@ -48,21 +57,14 @@ void setup() {
 
   io.begin(IO_ADDR);
 
-  // create interupt to detect external clock tempo
-
-
   clock.init(8);
-  // attachInterrupt(digitalPinToInterrupt(CLOCK_INTERUPT_PIN), clock.detectTempo, FALLING);
+  // create interupt to detect external clock tempo
+  attachInterrupt(digitalPinToInterrupt(CLOCK_INTERUPT_PIN), logClock, FALLING);
 
-  encoder.init(ENCODER_PIN_A, ENCODER_PIN_B, 20);
-
+  // using interupts, advance the clock instance forward
   Timer1.initialize(clock.stepDuration);
-  Timer1.attachInterrupt( [&clock](){ clock.advanceClock(); } );
+  Timer1.attachInterrupt(advanceClock);
 
-
-
-  pinMode(ENCODER_PIN_A, INPUT);
-  pinMode(ENCODER_PIN_B, INPUT);
   pinMode(CLOCK_LED_PIN, OUTPUT);
   digitalWrite(CLOCK_LED_PIN, LOW);
   pinMode(LOOP_START_LED_PIN, OUTPUT);
@@ -83,11 +85,11 @@ void loop() {
   long now = micros();                                // used throughout loop() function
   currTouched = touch.touched();                      // Get the currently touched pads
   resetBtn.newState = io.digitalRead(resetBtn.pin);   // detect reset buttons
-  int pos = encoder.trackShaftPosition();             // read the position of the encoder
+  long newEncoderPos = encoder.read();                // read the position of the encoder
 
-  if (pos != encoderPosition) {
-    Serial.print("encoder changed!: ");Serial.println(pos);
-    encoderPosition = pos;
+  if (newEncoderPos != encoderPosition) {
+    Serial.print("encoder changed!: ");Serial.println(newEncoderPos);
+    encoderPosition = newEncoderPos;
   }
 
 
@@ -95,41 +97,54 @@ void loop() {
   if (resetBtn.changedState()) {
     if (resetBtn.isPressed() == HIGH) {
       Event *tmp;
-      while (HEAD != NULL) {
-        tmp = HEAD;
-        HEAD = HEAD->next;
-        delete tmp;
+      while (HEAD != NULL) {   // while there are events
+        tmp = HEAD;            // set the first event to a temp variable
+        HEAD = HEAD->next;     // assign the head event to the event that occurs after it
+        delete tmp;            // delete the event
       }
       QUEUED = NULL;
       if (DEBUG && HEAD == NULL) { Serial.println("all events deleted"); }
     }
-    resetBtn.updateState();
+    resetBtn.updateState();    // this method should probably be called in btn.changedState() method
   }
 
   // ------ CLOCK INDICATORS -----
   // indicate tempo and loop start position via LEDs
   if (now - clock.pulseDuration < clock.lastClock) {
     digitalWrite(CLOCK_LED_PIN, HIGH);
-    if (clock.currStep == 1) {digitalWrite(LOOP_START_LED_PIN, HIGH);}
+    if (clock.currStep == 1) {
+      // log all events
+      if (HEAD != NULL && HEAD->next != NULL) {
+        Event * iterator = HEAD;
+        while (iterator != NULL) {
+          Serial.print("[ ");Serial.print(iterator->position);Serial.print(" ]");
+          iterator = iterator->next;
+        }
+        Serial.println("");
+      }
+      digitalWrite(LOOP_START_LED_PIN, HIGH);
+    }
   } else {
     digitalWrite(CLOCK_LED_PIN, LOW);
     if (clock.currStep == 1) {digitalWrite(LOOP_START_LED_PIN, LOW);}
   }
 
 
-
+  // BUG: there is a bug when you create an event with a duration that overlaps the end and start of the loop.
+  // If you only have this one event, the code will continue to run as expected, but adding any events after
+  // this will cause the application to crash (it officially crashes once the loop resets).
 
   // ------ HANDLE TOUCH EVENTS -----
   for (uint8_t i=0; i<4; i++) {
 
     // if it *is* touched and *wasnt* touched before
     if ( (currTouched & _BV(i) ) && !( lastTouched & _BV(i) ) ) {
-      io.digitalWrite(CHANNEL_A_LED_PIN, HIGH);
 
-      // get the current time of touch relative to clock.loopStart
-      timeOfLastTouchA = now - clock.loopStart;
+      io.digitalWrite(CHANNEL_A_LED_PIN, HIGH);         // turn channel LED on
 
-      Serial.print("timeOfLastTouchA: ");Serial.println(timeOfLastTouchA);
+      timeOfLastTouchA = now - clock.loopStart;         // get the current time of touch relative to clock.loopStart
+
+      // Serial.print("timeOfLastTouchA: ");Serial.println(timeOfLastTouchA);
     }
 
     //  if it *was* touched and now *isnt*
@@ -159,10 +174,13 @@ void loop() {
         Event * cur = HEAD;
         while (cur != NULL) {
 
+
+
+
           // if greater than cur->next->position
           if (newEvent->position > cur->position && cur->next == NULL) {
             cur->next = newEvent;
-            Serial.println(" <-put after last event in loop-> ");
+            // Serial.println(" <-put after last event in loop-> ");
             break;
           }
 
@@ -170,7 +188,7 @@ void loop() {
           else if (newEvent->position > cur->position && newEvent->position < cur->next->position) {
             newEvent->next = cur->next;
             cur->next = newEvent;
-            Serial.println(" <-put in between two events-> ");
+            // Serial.println(" <-put in between two events-> ");
             break; // we can break out of loop now that the new events location in linked list has been determined
           }
 
@@ -178,7 +196,7 @@ void loop() {
           else if (newEvent->position < cur->position) {
             newEvent->next = cur;
             HEAD = newEvent; // ie. HEAD
-            Serial.println(" <-set event as head-> ");
+            // Serial.println(" <-set event as head-> ");
             break;
           }
 

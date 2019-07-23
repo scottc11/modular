@@ -8,8 +8,8 @@ using namespace std;
 class Event {
   public:
   int channel;         // which channel should be used for IO
-  long duration;       // the duration of each event in microseconds
-  long position;       // the position of each event relative to the current position in the loop (microseconds)
+  long duration;       // the duration of the event in microseconds
+  long position;       // the point in time in which the event occured
   bool triggered;      // has the event been triggered
   Event *next;         // pointer to the 'next' Event to occur (linked list)
   Event *prev;         // pointer to the 'previous' Event to occur (linked list)

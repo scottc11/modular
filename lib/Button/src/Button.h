@@ -14,7 +14,7 @@ public:
   }
 
   bool changedState();
-  bool isPressed();
+  bool isPressed();     // if the pin being read is HIGH, returns true
   void updateState();
 
 };
