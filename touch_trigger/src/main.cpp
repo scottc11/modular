@@ -41,9 +41,7 @@ uint16_t currTouched = 0;
 long encoderPosition = 0;
 
 void logClock() {
-  Serial.println("clocked");
   clock.detectTempo();
-  Serial.println(clock.stepDuration);
 }
 
 void advanceClock() {
@@ -59,7 +57,7 @@ void setup() {
 
   clock.init(8);
   // create interupt to detect external clock tempo
-  attachInterrupt(digitalPinToInterrupt(CLOCK_INTERUPT_PIN), logClock, FALLING);
+  attachInterrupt(digitalPinToInterrupt(CLOCK_INTERUPT_PIN), logClock, RISING);
 
   // using interupts, advance the clock instance forward
   Timer1.initialize(clock.stepDuration);
@@ -153,11 +151,14 @@ void loop() {
 
       timeOfLastReleaseA = now - clock.loopStart;
       long position = timeOfLastTouchA;
-      long duration = timeOfLastReleaseA - timeOfLastTouchA;
+      long duration = timeOfLastReleaseA - timeOfLastTouchA;   // calulate duration of event based on touchOn and touchOff
 
       // create new event
       Event *newEvent = new Event(1, position, duration);
+      newEvent->calculateRatio(clock.loopDuration);
 
+      // handle adding the first two events to the event list.
+      // should be refractored.
       if (HEAD == NULL) {
         Serial.println("head is NULL");
         HEAD = newEvent;
@@ -168,14 +169,13 @@ void loop() {
         HEAD->next = newEvent;
       }
 
-      // iterate through all events until there are no more remaining
+      // -------- ADD + ORDER --------
+      // iterate through all events and place the new event in the list based on the events
+      // position. ie. Add the new event to the event list and order.
       if (HEAD->next != NULL) {
 
         Event * cur = HEAD;
         while (cur != NULL) {
-
-
-
 
           // if greater than cur->next->position
           if (newEvent->position > cur->position && cur->next == NULL) {
@@ -208,6 +208,12 @@ void loop() {
 
   // HANDLE THE QUEUED EVENT
   if (QUEUED) {
+
+    if (clock.hasChangedTempo()) {
+      Serial.print(clock.loopDuration);Serial.print(" ::::: ");Serial.println(clock.oldLoopDuration);
+      // QUEUED->calculatePosition(clock.loopDuration);
+    }
+
     long loopStart = now - clock.loopStart;
 
     if (!QUEUED->triggered) { // ifnext event has not yet been triggered

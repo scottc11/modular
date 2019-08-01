@@ -12,12 +12,18 @@ public:
   long pulseDuration;    // how long, in microseconds, the clock led will be lit
   long stepDuration;     // how long, in microseconds, a single step lasts before the next step begins. Will be variable based on clock input
   long loopStart;        // time when the first step occured on the system clock
+  long loopDuration;     // (stepDuration * steps)
+  long oldLoopDuration;  // for tracking tempo changes
   long lastClock;        // time of the last clocked event
   long lastExtClock;     // time of last detected external clock signal
+
+
+  int PPQN;              // pulses-per-quarter-note
 
   void init(int _steps);
   void advanceClock();
   void detectTempo();
+  bool hasChangedTempo();
 
 };
 
