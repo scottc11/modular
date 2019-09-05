@@ -2,11 +2,15 @@
 #include <Adafruit_MCP23017.h>
 #include <TimerOne.h>
 #include <Adafruit_MPR121.h>
+#include <Encoder.h>
 #include <Button.h>
 #include <Clock.h>
-#include <Encoder.h>
 #include <Event.h>
 #include <Channel.cpp>
+
+// To use interrupts, you must include the AVR interrupt header.
+#include <avr/io.h>
+#include <avr/interrupt.h>
 
 #define IO_ADDR 0x00
 #define TOUCH_ADDR 0x5A
