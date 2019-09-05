@@ -20,6 +20,11 @@ pio run
 pio run --target upload
 ```
 
+#### Clean build files
+```
+platformio run --target clean
+```
+
 #### run serial monitor
 ```
 pio device monitor --port /dev/cu.usbserial-AI041SA5
